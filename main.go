@@ -18,6 +18,9 @@ func abort(s string) {
 type FilterContext struct {
 	src  *gmf.AVFilter
 	sink *gmf.AVFilter
+
+	inputs  *gmf.AVFilterInOut
+	outputs *gmf.AVFilterInOut
 }
 
 func initFilters() FilterContext {
@@ -29,7 +32,22 @@ func initFilters() FilterContext {
 	if err != nil {
 		fatal(err)
 	}
-	return FilterContext{src: src, sink: sink}
+
+	inputs, err := gmf.NewFilterInOut()
+	if err != nil {
+		fatal(err)
+	}
+	outputs, err := gmf.NewFilterInOut()
+	if err != nil {
+		fatal(err)
+	}
+
+	return FilterContext{src: src, sink: sink, inputs: inputs, outputs: outputs}
+}
+
+func (this *FilterContext) freeFilters() {
+	this.inputs.Free()
+	this.outputs.Free()
 }
 
 func main() {
@@ -47,7 +65,8 @@ func main() {
 		fatal(err)
 	}
 
-	initFilters()
+	filters := initFilters()
+	defer filters.freeFilters()
 
 	log.Println("Reading packets...")
 	var i = 0
