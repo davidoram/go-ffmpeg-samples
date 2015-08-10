@@ -6,13 +6,39 @@ import (
 	//"path"
 	//"runtime"
 
-	"github.com/hybridgroup/go-opencv/opencv"
+	//"github.com/hybridgroup/go-opencv/opencv"
+	"github.com/lazywei/go-opencv/opencv"
 	//"../opencv" // can be used in forks, comment in real application
 )
 
+// Image Context is passed through ImageHandlerFunc processing chain
+type ImgCtx struct {
+	win *opencv.Window
+	pos int
+}
+
+// Interface for methods that manipulate images
+type ImageHandlerFunc func(ctx *ImgCtx, img *opencv.IplImage) *opencv.IplImage
+
+func NewImgCtx() *ImgCtx {
+	ctx := new(ImgCtx)
+	ctx.win = opencv.NewWindow("Go-OpenCV Webcam")
+
+	ctx.pos = 1
+	ctx.win.CreateTrackbar("Thresh", 1, 100, func(pos int, param ...interface{}) {
+		ctx.pos = pos
+	})
+
+	return ctx
+}
+
+func (this *ImgCtx) Destroy() {
+	this.win.Destroy()
+}
+
 func main() {
-	win := opencv.NewWindow("Go-OpenCV Webcam")
-	defer win.Destroy()
+	imgCtx := NewImgCtx()
+	defer imgCtx.Destroy()
 
 	cap := opencv.NewCameraCapture(0)
 	if cap == nil {
@@ -20,26 +46,25 @@ func main() {
 	}
 	defer cap.Release()
 
-	win.CreateTrackbar("Thresh", 1, 100, func(pos int, param ...interface{}) {
-		for {
-			if cap.GrabFrame() {
-				img := cap.RetrieveFrame(1)
-				if img != nil {
-					ProcessImage(img, win, pos)
-				} else {
-					fmt.Println("Image ins nil")
-				}
-			}
-
-			if key := opencv.WaitKey(10); key == 27 {
-				os.Exit(0)
+	for {
+		if cap.GrabFrame() {
+			img := cap.RetrieveFrame(1)
+			if img != nil {
+				ProcessImage(img, imgCtx)
+			} else {
+				fmt.Println("Image ins nil")
 			}
 		}
-	})
+
+		// Press 'esc' to quit
+		if key := opencv.WaitKey(10); key == 27 {
+			os.Exit(0)
+		}
+	}
 	opencv.WaitKey(0)
 }
 
-func ProcessImage(img *opencv.IplImage, win *opencv.Window, pos int) error {
+func ProcessImage(img *opencv.IplImage, ctx *ImgCtx) error {
 	w := img.Width()
 	h := img.Height()
 
@@ -59,12 +84,12 @@ func ProcessImage(img *opencv.IplImage, win *opencv.Window, pos int) error {
 	opencv.Not(gray, edge)
 
 	// Run the edge detector on grayscale
-	opencv.Canny(gray, edge, float64(pos), float64(pos*3), 3)
+	opencv.Canny(gray, edge, float64(ctx.pos), float64(ctx.pos*3), 3)
 
 	opencv.Zero(cedge)
 	// copy edge points
 	opencv.Copy(img, cedge, edge)
 
-	win.ShowImage(cedge)
+	ctx.win.ShowImage(cedge)
 	return nil
 }
