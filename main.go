@@ -1,128 +1,70 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"os"
+	//"path"
+	//"runtime"
 
-	"github.com/davidoram/gmf"
+	"github.com/hybridgroup/go-opencv/opencv"
+	//"../opencv" // can be used in forks, comment in real application
 )
 
-func fatal(e error) {
-	log.Fatal(e)
-}
-
-func abort(s string) {
-	log.Fatal(s)
-}
-
-type FilterContext struct {
-	src  *gmf.AVFilter
-	sink *gmf.AVFilter
-
-	inputs  *gmf.AVFilterInOut
-	outputs *gmf.AVFilterInOut
-}
-
-func initFilters() FilterContext {
-	src, err := gmf.GetFilter("buffer")
-	if err != nil {
-		fatal(err)
-	}
-	sink, err := gmf.GetFilter("buffersink")
-	if err != nil {
-		fatal(err)
-	}
-
-	inputs, err := gmf.NewFilterInOut()
-	if err != nil {
-		fatal(err)
-	}
-	outputs, err := gmf.NewFilterInOut()
-	if err != nil {
-		fatal(err)
-	}
-
-	return FilterContext{src: src, sink: sink, inputs: inputs, outputs: outputs}
-}
-
-func (this *FilterContext) freeFilters() {
-	this.inputs.Free()
-	this.outputs.Free()
-}
-
 func main() {
+	win := opencv.NewWindow("Go-OpenCV Webcam")
+	defer win.Destroy()
 
-	if len(os.Args) != 2 {
-		log.Fatal("Usage: %s file\n", os.Args[0])
+	cap := opencv.NewCameraCapture(0)
+	if cap == nil {
+		panic("can not open camera")
 	}
+	defer cap.Release()
 
-	ictx := gmf.NewCtx()
-	log.Printf("Opening input '%v'...\n", os.Args[1])
-	ictx.OpenInput(os.Args[1])
-	log.Println("Retrieving best stream...")
-	ist, err := ictx.GetBestStream(gmf.AVMEDIA_TYPE_VIDEO)
-	if err != nil {
-		fatal(err)
-	}
+	win.CreateTrackbar("Thresh", 1, 100, func(pos int, param ...interface{}) {
+		for {
+			if cap.GrabFrame() {
+				img := cap.RetrieveFrame(1)
+				if img != nil {
+					ProcessImage(img, win, pos)
+				} else {
+					fmt.Println("Image ins nil")
+				}
+			}
 
-	filters := initFilters()
-	defer filters.freeFilters()
+			if key := opencv.WaitKey(10); key == 27 {
+				os.Exit(0)
+			}
+		}
+	})
+	opencv.WaitKey(0)
+}
 
-	log.Println("Reading packets...")
-	var i = 0
-	for p := range ictx.GetNewPackets() {
-		_ = p
-		i++
-		gmf.Release(p)
-	}
-	log.Println("Done", i, ist)
+func ProcessImage(img *opencv.IplImage, win *opencv.Window, pos int) error {
+	w := img.Width()
+	h := img.Height()
 
-	ictx.CloseInputAndRelease()
+	// Create the output image
+	cedge := opencv.CreateImage(w, h, opencv.IPL_DEPTH_8U, 3)
+	defer cedge.Release()
 
-	//   if ((ret = init_filters(filter_descr)) < 0)
-	//       goto end;
-	//   /* read all packets */
-	//   while (1) {
-	//       if ((ret = av_read_frame(fmt_ctx, &packet)) < 0)
-	//           break;
-	//       if (packet.stream_index == video_stream_index) {
-	//           got_frame = 0;
-	//           ret = avcodec_decode_video2(dec_ctx, frame, &got_frame, &packet);
-	//           if (ret < 0) {
-	//               av_log(NULL, AV_LOG_ERROR, "Error decoding video\n");
-	//               break;
-	//           }
-	//           if (got_frame) {
-	//               frame->pts = av_frame_get_best_effort_timestamp(frame);
-	//               /* push the decoded frame into the filtergraph */
-	//               if (av_buffersrc_add_frame_flags(buffersrc_ctx, frame, AV_BUFFERSRC_FLAG_KEEP_REF) < 0) {
-	//                   av_log(NULL, AV_LOG_ERROR, "Error while feeding the filtergraph\n");
-	//                   break;
-	//               }
-	//               /* pull filtered frames from the filtergraph */
-	//               while (1) {
-	//                   ret = av_buffersink_get_frame(buffersink_ctx, filt_frame);
-	//                   if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
-	//                       break;
-	//                   if (ret < 0)
-	//                       goto end;
-	//                   display_frame(filt_frame, buffersink_ctx->inputs[0]->time_base);
-	//                   av_frame_unref(filt_frame);
-	//               }
-	//               av_frame_unref(frame);
-	//           }
-	//       }
-	//       av_free_packet(&packet);
-	//   }
-	// end:
-	//   avfilter_graph_free(&filter_graph);
-	//   avcodec_close(dec_ctx);
-	//   avformat_close_input(&fmt_ctx);
-	//   av_frame_free(&frame);
-	//   av_frame_free(&filt_frame);
-	//   if (ret < 0 && ret != AVERROR_EOF) {
-	//       fprintf(stderr, "Error occurred: %s\n", av_err2str(ret));
-	//       exit(1);
-	//   }
-	//   exit(0);
+	// Convert to grayscale
+	gray := opencv.CreateImage(w, h, opencv.IPL_DEPTH_8U, 1)
+	edge := opencv.CreateImage(w, h, opencv.IPL_DEPTH_8U, 1)
+	defer gray.Release()
+	defer edge.Release()
+
+	opencv.CvtColor(img, gray, opencv.CV_BGR2GRAY)
+
+	opencv.Smooth(gray, edge, opencv.CV_BLUR, 3, 3, 0, 0)
+	opencv.Not(gray, edge)
+
+	// Run the edge detector on grayscale
+	opencv.Canny(gray, edge, float64(pos), float64(pos*3), 3)
+
+	opencv.Zero(cedge)
+	// copy edge points
+	opencv.Copy(img, cedge, edge)
+
+	win.ShowImage(cedge)
+	return nil
 }
