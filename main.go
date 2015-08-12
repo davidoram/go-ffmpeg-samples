@@ -24,6 +24,9 @@ type ImgCtx struct {
 	// Frame counter
 	framecnt int
 
+	// Font
+	font *opencv.Font
+
 	// Text to display
 	text string
 }
@@ -40,6 +43,8 @@ func NewImgCtx() *ImgCtx {
 	ctx.win.CreateTrackbar("Thresh", 1, 100, func(pos int, param ...interface{}) {
 		ctx.pos = pos
 	})
+	println("CV_FONT_HERSHEY_DUPLEX: %v", opencv.CV_FONT_HERSHEY_DUPLEX)
+	ctx.font = opencv.InitFont(opencv.CV_FONT_HERSHEY_DUPLEX, 1, 1, 0, 1, 8)
 
 	return ctx
 }
@@ -78,6 +83,16 @@ func (imgCtx *ImgCtx) GrayScale(img *opencv.IplImage) (*opencv.IplImage, error) 
 	return cedge, nil
 }
 
+func (imgCtx *ImgCtx) AddText(img *opencv.IplImage) (*opencv.IplImage, error) {
+
+	w := img.Width()
+	h := img.Height()
+	c := opencv.NewScalar(255, 255, 255, 0)
+	pos := opencv.Point{w / 2, h / 2}
+	imgCtx.font.PutText(img, imgCtx.text, pos, c)
+	return img, nil
+}
+
 func (imgCtx *ImgCtx) Display(img *opencv.IplImage) (*opencv.IplImage, error) {
 	imgCtx.win.ShowImage(img)
 	return img, nil
@@ -97,7 +112,7 @@ func main() {
 		if cap.GrabFrame() {
 			img := cap.RetrieveFrame(1)
 			if img != nil {
-				fmt.Println("Processing frame")
+				// fmt.Println("Processing frame")
 				//ProcessImage(img, imgCtx)
 				// imgCtx.ProcessPipeline(pipeline, img)
 				img1, err := imgCtx.GrayScale(img)
@@ -107,12 +122,19 @@ func main() {
 				}
 				defer img1.Release()
 
-				img2, err := imgCtx.Display(img1)
+				img2, err := imgCtx.AddText(img1)
 				if err != nil {
 					fmt.Printf("error stage 2: %v\n", err)
 					continue
 				}
 				defer img2.Release()
+
+				img3, err := imgCtx.Display(img2)
+				if err != nil {
+					fmt.Printf("error stage 3: %v\n", err)
+					continue
+				}
+				defer img3.Release()
 
 			} else {
 				fmt.Println("Image ins nil")
