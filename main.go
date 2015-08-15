@@ -84,7 +84,7 @@ func (imgCtx *ImgCtx) AddText(img *opencv.IplImage) (*opencv.IplImage, error) {
 	h := img.Height()
 	c := opencv.NewScalar(255, 255, 255, 0)
 	pos := opencv.Point{w / 2, h / 2}
-	imgCtx.font.PutText(img, imgCtx.text, pos, c)
+	imgCtx.font.PutText(img, fmt.Sprintf("Frame %d", imgCtx.framecnt), pos, c)
 	return img, nil
 }
 
@@ -107,6 +107,7 @@ func main() {
 		if cap.GrabFrame() {
 			img := cap.RetrieveFrame(1)
 			if img != nil {
+				imgCtx.framecnt += 1
 				// fmt.Println("Processing frame")
 				//ProcessImage(img, imgCtx)
 				// imgCtx.ProcessPipeline(pipeline, img)
