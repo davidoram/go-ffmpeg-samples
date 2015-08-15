@@ -24,7 +24,6 @@ To run the program
 
 
 
-
 # FFMPEG experiments
 
 Setup
@@ -51,30 +50,10 @@ ffmpeg -f avfoundation -i "FaceTime" -vf "vflip"  -vcodec libx264 -tune zerolate
 ffmpeg -f avfoundation -i "FaceTime" -vf "vflip" -s 640x480 -vcodec libx264 -tune zerolatency -b 500k -f mpegts udp://127.0.0.1:1234
 ```
 
-Design idea:
-- Implement a generic plugin platform design that can extend ffmpeg
-  - Eg: Passes images via IPC (eg: http://zeromq.org/) to another process
-        Every Nth frame
-        Next Frame when asked
-  - Separate process does image processing & passes them back to be interspersed in the stream
+# Links
 
-
-To Build
-```
-go run src/github.com/davidoram/go-ffmpeg-samples/main.go -input=src/in.mov
-```
-
-Testing changes
-go test github.com/davidoram/gmf
-
-https://trac.ffmpeg.org/wiki/FilteringGuide
-http://wiki.multimedia.cx/index.php?title=FFmpeg_filter_howto
-http://comments.gmane.org/gmane.comp.video.ffmpeg.devel/149999 - Not likely to implement plugin/filters
-http://git.videolan.org/?p=ffmpeg.git;a=commitdiff;h=3250231a0292d716afd9d1ad25fc39bacda17f67 - commit of a new filter
-
-
-Solution is to:
-- Fork ffmpeg
-- Write glue code that allows filters to be built in golang
--
-
+- https://trac.ffmpeg.org/wiki/FilteringGuide
+- http://wiki.multimedia.cx/index.php?title=FFmpeg_filter_howto
+- http://comments.gmane.org/gmane.comp.video.ffmpeg.devel/149999 - Not likely to implement plugin/filters
+- http://git.videolan.org/?p=ffmpeg.git;a=commitdiff;h=3250231a0292d716afd9d1ad25fc39bacda17f67 - commit of a new filter
+- https://obsproject.com/forum/resources/how-to-set-up-your-own-private-rtmp-server-using-nginx.50/ - NGNIX RTSP proxy for raspberry pi
