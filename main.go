@@ -6,12 +6,8 @@ package main
 import (
 	"fmt"
 	"os"
-	//"path"
-	//"runtime"
 
-	//"github.com/hybridgroup/go-opencv/opencv"
 	"github.com/lazywei/go-opencv/opencv"
-	//"../opencv" // can be used in forks, comment in real application
 )
 
 // Image Context is passed through ImageHandlerFunc processing chain
@@ -43,7 +39,6 @@ func NewImgCtx() *ImgCtx {
 	ctx.win.CreateTrackbar("Thresh", 1, 100, func(pos int, param ...interface{}) {
 		ctx.pos = pos
 	})
-	println("CV_FONT_HERSHEY_DUPLEX: %v", opencv.CV_FONT_HERSHEY_DUPLEX)
 	ctx.font = opencv.InitFont(opencv.CV_FONT_HERSHEY_DUPLEX, 1, 1, 0, 1, 8)
 
 	return ctx
